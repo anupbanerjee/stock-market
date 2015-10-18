@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:camel="http://camel.apache.org/schema/spring"
+	xmlns:kie="http://drools.org/schema/kie-spring" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:cassandra="http://www.springframework.org/schema/data/cassandra"
+	xmlns:task="http://www.springframework.org/schema/task"
+	xsi:schemaLocation="
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd
+       http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+    http://drools.org/schema/kie-spring classpath:kie-spring-6.0.0.xsd
+http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd">
+
+	<camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
+		<package>org.anup.stock.market</package>
+		<route id="StockMarket-ProcessBuy">
+			<from uri="jms:stocks.buy" />
+			<bean ref="stockTradeProcessor" method="processTrade" />
+		</route>
+
+		<route id="StockMarket-ProcessSale">
+			<from uri="jms:stocks.sell" />
+			<bean ref="stockTradeProcessor" method="processTrade" />
+		</route>
+
+		<route id="sendMessage">
+			<from uri="quartz2://stockBrokerBuyer?cron=0/10+*+*+*+*+?" />
+			<bean ref="messageSender" method="sendMessage" />
+			<to
+				uri="xmpp://talk.google.com:5222/anupbanerjee@gmail.com?serviceName=gmail.com&amp;user=drools.example&amp;password=drools@example" />
+		</route>
+
+	</camelContext>
+
+
+
+	<bean id="kiePostProcessor" class="org.kie.spring.KModuleBeanFactoryPostProcessor" />
+	<kie:kmodule id="drools-camel-server">
+		<kie:kbase name="kieKBase" eventProcessingMode="stream"
+			equalsBehavior="identity">
+			<kie:ksession name="kieSession" clockType="realtime"
+				type="stateful">
+				<kie:batch>
+					<kie:fire-until-halt />
+				</kie:batch>
+			</kie:ksession>
+		</kie:kbase>
+	</kie:kmodule>
+
+	<!-- Default ActiveMQ broker URL -->
+	<bean id="jms" class="org.apache.camel.component.jms.JmsComponent">
+		<property name="connectionFactory">
+			<bean id="jmsConnectionFactory" class="org.apache.activemq.ActiveMQConnectionFactory">
+				<property name="brokerURL" value="tcp://MW7RNVSOWELPKC:61616" />
+				<property name="userName" value="admin" />
+				<property name="password" value="admin" />
+			</bean>
+		</property>
+	</bean>
+
+	<bean id="startup" class="org.anup.stock.market.MarketStartup"
+		init-method="init">
+		<property name="session" ref="kieSession" />
+	</bean>
+
+	<bean id="stockTradeProcessor" class="org.anup.stock.market.StockTradeProcessor">
+		<property name="session" ref="kieSession" />
+	</bean>
+
+	<bean id="messageSender" class="org.anup.stock.market.MessageSender" />
+
+
+</beans>

@@ -1,0 +1,31 @@
+package org.anup.stock.market;
+
+import org.anup.stock.broker.Stock;
+import org.slf4j.Logger;
+
+
+global Logger logger
+
+declare Stock
+	@role(event)
+	@expires(1m)
+end
+
+
+rule "Process Purchase Of Accenture Stock"
+	when
+	 	purchaseStock: Stock(symbol == "ACN", transactionType == "BUY", quantity >= 500)
+	then
+		logger.info("Rule Id {}" , drools.getRule().getId());
+		logger.info("Working Memory {}", drools.getWorkingMemory());
+		logger.info("Tuple {}", drools.getTuple());
+end
+
+rule "Process Sale Of Accenture Stock"
+	when
+	 	purchaseStock: Stock(symbol == "ACN", transactionType == "SELL", quantity <= 500)
+	then
+		logger.info("Rule Id {}" , drools.getRule().getId());
+		logger.info("Working Memory {}", drools.getWorkingMemory());
+		logger.info("Tuple {}", drools.getTuple());
+end
